@@ -634,6 +634,7 @@ Before digging any deeper into the AD7124 digital filters, let’s take a
 step back and look at a circuit that’s still ubiquitous (in various
 forms) in high-performance benchtop meters: the dual-slope ADC, shown in
 Figure 18. Without going too deep into the details, a dual slope
+
 converter observes and averages an input voltage for a fixed time
 period, where the input voltage controls the slope of an integrator’s
 output. The integrator is then switched to a known reference voltage of
@@ -850,7 +851,9 @@ capable of a higher sample rate, the time series data can be upsampled
 and filtered by an interpolating filter.5 (maybe include script instead
 of screen shot ??? )
 
+
 .. image:: image2021-5-24_9-53-46.png
+
 
 **Figure 27. Verifying arbitrary noise generator.**
 
@@ -1011,7 +1014,9 @@ element in a signal chain.
 
 .. image:: ad7124_noise_blast.png
 
+
 **Figure 28. Blasting the AD7124 with 1mV/√Hz**
+
 
 Conclusion
 ----------
