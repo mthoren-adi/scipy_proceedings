@@ -29,19 +29,73 @@ While audio applications are ubiquitous, with well-understood requirements, indu
 -  Load cells, pressure sensors, and torque sensors have single-digit    ppm noise, but tiny (tens of millivolts) signal levels
 -  Modern techniques facilitate high-resolution optical measurements from relatively low-resolution ADCs when analog and digital noise and interference reduction techniques are applied.
 
-In a nutshell - there is always room for improvement in analog and mixed signal components for instrumentation. If an ADC (or DAC) appears on the market that advances the state of the art in speed, noise, power, accuracy, or price, industry will happily apply it to existing problems, then ask for more improvement.
+In a nutshell - there is always room for improvement in analog and mixed signal components for instrumentation. If an Analog to Digital Converter (ADC) or Digital to Analog Converter (DAC) appears on the market that advances the state of the art in speed, noise, power, accuracy, or price, industry will happily apply it to existing problems, then ask for more improvement.
 
 This paper will detail some practical, hands-on examples and tools for instrumentation signal chain design and evaluation using easily available, affordable materials, free software, and Python scripts.
+
+
+A Generic Mixed Signal Chain
+----------------------------
+
+Figure X shows a generic signal chain typical of a precision instrumentation application. Some physical phenomenon such as temperature, light intensity, pH, force, etc. is converted to an electrical parameter (resistance, current, or directly to voltage). This signal is then amplified,  and low-pass filtered.
+
+.. image:: mixed_mode_signal_chain.png
+  :width: 700
+
+**Figure X. A Generic Mixed Mode Signal Chain**
+
+If the sensor’s signal will eventually reside on, or at least take a trip through a computer, an ADC will be involved somewhere along the way. There are numerous background references on analog to digital converters available, and most readers will have a sense that an analog to digital converter samples an input signal at some point in time (or measures the average of a signal over some observation time), and produces a numerical representation of that signal - most often as a binary number with some value between zero and (2**N)-1 where N is the number of bits in the output word.
+
+ADC Quantization Noise (and why you don't need to care any more)
+----------------------------------------------------------------
+
+While there are several obvious noise sources in Figure X, one that is often either ignored or over-emphasized is the number of bits in the ADC's digital output. Historically, an ADC's "number of bits" was considered the ultimate figure of merit, where a 16-bit converter was obviously 4 times better than a 14-bit converter. But in the case of modern, high-resolution converters, the “number of bits” can be safely ignored. Note a general principle of signal chain design:
+
+“The input noise of one stage should be somewhat lower than the output noise of the preceding stage”
+
+The number of ADC bits, and the full-scale input range, determine the ADC’s quantization noise (refer to background references). While quantization noise has different characteristics than thermal noise, it is still just another noise source and is subject to the same principle. Referring back to Figure 7, the sensor's 0 to 0.5V output range is amplified to match the ADC's input range of 0 to 5V, and one of three digital output options may be chosen:
+
+-  Infinity-bits
+-  16-bits
+-  12-bits
+
+Assume that the amplifiers are well-chosen such that their noise is negligible. The only bandwidth limiting element is the 637kHz, first-order filter, which has an effective noise bandwidth of 1MHz, such that the total noise at the ADC input is about 0.4mV RMS. This is 1/3 of a least-significant bit (LSB, or “code”) for a 12-bit converter, so for a noiseless sensor input, the output code will either be steady, or flip between two adjacent codes. In contrast - the 16-bit output will be a distribution of codes, with a standard deviation of about 6 codes.
+
+Aside from quantization noise (which is unavoidable unless your ADC has infinity bits), an ADC itself will have other noise sources that are more akin to those of analog signal chains - thermal noise in amplifier circuits, capacitor thermal noise in sample-and hold circuits, and reference noise. Typically these noise sources tend to be flat or “pink”, with a relatively Gaussian distribution. (This excludes “shaped” noise common in sigma delta converters, but such noise is filtered internally - if the converter is designed properly, you won’t see it.)
+
+As with any signal chain, one noise source within an ADC often dominates. Thus:
+
+-  If a noiseless signal is applied to the input of an N-bit ADC, resulting in either a single output code, or two adjacent output codes, then quantization noise dominates. The Signal to Noise Ratio can be no greater than (6.02 N + 1.76) dB.
+-  If a noiseless signal is applied to the input of an N-bit ADC and the output is a gaussian distribution of “many” output codes, then a thermal noise source dominates. The Signal to Noise Ratio is no greater than :math:`20\log(V_{in}(p-p)/(\sigma/\sqrt{8}))`, where:
+
+  -  :math:`V_{in}(p-p)` is the full-scale input signal and
+  -  :math:`\sigma` is the standard deviation of the output codes in units of voltage.
+
+As an example of an ADC that is limited by quantization noise, consider an AD672A, sampled at 10 MSPS and an AD871, sampled at 5MSPS. Both of these are fairly quiet converters, as far as 12-bit converters go. The fact that the vast majority of output codes fall into a single bin indicates that quantization noise is greater than (or on par with) the thermal noise.
+
+.. image:: code_hits.png
+  :width: 400
+
+**Figure 8. a. AD672A, sampled at 10 MSPS. b. AD871, sampled at 5MSPS.**
+
+In contrast, the figure below shows the grounded-input histogram of a 16-bit ADC. Nearly 20 codes are represented, and the standard deviation is about 2.5 codes.
+
+.. image:: code_from_midscale.png
+  :width: 200
+
+**Figure 9. LTC2205 zero-input histogram**
+
+Very high resolution converters, such as the AD7124-8 that will be used as an example shortly, rarely fall into the first category - thermal noise dominates in all of the gain / bandwidth settings, and a shorted input will always produce a fairly Gaussian distribution of output codes.
 
 Resistance is Futile: A Fundamental Sensor Limitation
 -----------------------------------------------------
 
 All sensors, no matter how perfect, have some maximum input value (and a corresponding maximum output - which may be a voltage, current, dial position, etc.) and a finite noise floor - “wiggles” at the output that exist even if the input is perfectly still. At some point, a sensor with an electrical output will include an element with a finite resistance (or more generally, impedance) represented by Rsensor in the diagram below. This represents one fundamental noise limit that cannot be improved upon - this resistance will produce, at a minimum:
 
-Vn(RMS)= np.sqrt(4 \* K \* T \* Rsensor \* (F2-F1)) Volts of noise,
+:math:`e_n(RMS) = \sqrt{4 * K * T * Rsensor * (F2-F1)}` Volts of noise,
 where:
 
-Vn(RMS) is the total noise
+:math:`e_n(RMS)` is the total noise
 
 K is Boltzmann’s constant (1.38e-23 J/K)
 
@@ -50,29 +104,32 @@ T is the resistor’s absolute temperature (Kelvin)
 F2 and F1 are the upper and lower limits of the frequency band of
 interest.
 
-Normalizing the bandwidth to 1Hz expresses the noise density, in V/:math:`\sqrt{\rm Hz}`.
+Normalizing the bandwidth to 1Hz expresses the noise density, in :math:`\frac{V}{\sqrt{Hz}}`.
 
 A sensor’s datasheet may specify a low output impedance (often close to zero ohms), but this likely a buffer stage - which eases interfacing to downstream circuits, but does not eliminate noise due to impedances earlier in the signal chain.
 
-.. image:: generic_signal_chain.png
+.. image:: generic_buffered_sensor.png
+  :width: 300
 
-**Figure 1. Conceptual Sensor Signal Chain**
+**Figure 1. Conceptual Sensor with Buffered Output. Noise is buffered along with the signal.**
 
-There are numerous other sensor limitations - mechanical, chemical, optical, etc. each with their own theoretical limits. The following analysis focuses on resistance and follows its effects through the signal chain. Other effects can be added in later.
+There are numerous other sensor limitations - mechanical, chemical, optical, etc. each with their own theoretical limits and whose effects can be modeled and compensated for later. But noise is the one imperfection that that cannot 
 
 A Laboratory Noise Source
 -------------------------
 
-A noise generator, based on fundamental physics, is useful for both understanding the principles of (and actual testing of) signal chains. The circuit shown in Figure X uses a 1M resistor as a 127nV/rootHz (at room temperature) noise source with “okay accuracy” and bandwidth. While the accuracy is only “okay”, the advantage is that it is based on first principles, so in a sense can act as an uncalibrated standard. The OP482 is an ultralow bias current amplifier with correspondingly low current noise, and a voltage noise low enough that the noise due to a 1M input impedance is dominant. Configured with a gain of 100, the output noise is 12.7 µV/:math:`\sqrt{\rm Hz}`. So in a sense - this circuit is the “world’s worst sensor”, with lots of sensor noise, but that does not actually sense anything. (It could be used as a crude temperature sensor - but in this application, any great departure from room temperature (~300 Kelvin) should be corrected for.)
+A noise generator is useful for both understanding the principles of and actual testing of signal chains. The circuit shown in Figure X uses a 1M resistor as a 127nV/:math:`\sqrt{Hz}` (at room temperature) noise source with “okay accuracy” and bandwidth. While the accuracy is only “okay”, the advantage is that it is based on first principles, so in a sense can act as an uncalibrated standard. The OP482 is an ultralow bias current amplifier with correspondingly low current noise, and a voltage noise low enough that the noise due to a 1M input impedance is dominant. Configured with a gain of 100, the output noise is 12.7 µV/:math:`\sqrt{\rm Hz}`. So in a sense - this circuit is the “world’s worst sensor”, with lots of sensor noise, but that does not actually sense anything. (It could be used as a crude temperature sensor - but in this application, any great departure from room temperature (~300 Kelvin) should be corrected for.)
 
 .. image:: noise_source_schematic.png
+  :width: 500
 
 **Figure 2. Laboratory Noise Source**
 
 The noise source was verified with an ADALM2000 USB instrument, using
 the Scopy GUI’s spectrum analyzer, shown in Figure 3.
 
-.. image:: noise_source_measured_density.png
+.. image:: resistor_based_noise_source_nsd_scopy.png
+  :width: 500
 
 **Figure 3. Noise Generator Output
 <<Placeholder - this is LTC6655 noise test jig>>**
@@ -85,70 +142,16 @@ While Scopy is useful for single, visual measurements, the functionality can be 
 
 .. code-block:: python
 
-    import libm2k
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from scipy.signal import periodogram, windows
-    import statistics
-
-    import time
-
-    def open_context():
-        ctx = libm2k.m2kOpen()
-        ain = ctx.getAnalogIn()
-        ps = ctx.getPowerSupply()
-
-        return ctx, ain, ps
-
-    def power_opamp(ps, value):
-
-        ps.enableChannel(0, True)
-        ps.enableChannel(1, True)
-        ps.pushChannel(0, value)
-        ps.pushChannel(1, -value)
-
-    def read_ADC(ain, buffer_length, samplerate):
-        ain.enableChannel(0, True)
-        ain.enableChannel(1, True)
-        ain.setSampleRate(samplerate)
-        data = ain.getSamples(buffer_length)
-        adc_noise = data[1]
-        dc = np.convolve(adc_noise, (np.ones(64) / 64.0), mode='same')  # Calculate running DC average
-        adc_noise = adc_noise - dc
-        resistor_noise = data[0]
-        dc = np.convolve(resistor_noise, (np.ones(64) / 64.0), mode='same')  # Calculate running DC average
-        resistor_noise = resistor_noise - dc
-
-        return adc_noise, resistor_noise
-
-    def get_psd(data, samplerate):
-        fs, psd = periodogram(data, samplerate, window="blackman", return_onesided=True)
-
-        return fs, psd
-
-    def main():
-        samplerate = 100000000
-        buffer_length = 4096
-        supply_voltage = 5
-
-        ctx, ain, ps = open_context()
-        power_opamp(ps, supply_voltage)
-        time.sleep(0.1)
-        adc_noise, resistor_noise = read_ADC(ain, buffer_length, samplerate)
-        adc_fs, adc_psd = get_psd(adc_noise, samplerate)
-        resistor_fs, resistor_psd = get_psd(resistor_noise, samplerate)
-        fig, axs = plt.subplots(2)
-        fig.suptitle('Power Spectral Density')
-        axs[0].semilogy(adc_fs, np.sqrt(adc_psd))
-        axs[0].set_xlabel('frequency [Hz]')
-        axs[0].set_ylabel('PSD [V/sqrt(Hz)]')
-        axs[0].set_title("ADC Noise PSD")
-        axs[1].semilogy(resistor_fs, np.sqrt(resistor_psd))
-        axs[1].set_xlabel('frequency [Hz]')
-        axs[1].set_ylabel('PSD [V/sqrt(Hz)]')
-        axs[1].set_title("Resistor Noise PSD")
-        plt.show()
-        libm2k.contextClose(ctx)
+    navgs = 32
+    ns = 2**16
+    vsd=np.zeros(ns//2+1) # asking for onesided periodogram
+        for i in range(navgs): # Average 8 periodograms to smooth out data
+        ch1=np.asarray(data[0]) # Extract channel 1 data
+        ch1 -= np.average(ch1) # Remove DC
+        fs, psd = periodogram(ch1, 1000000, window="blackman",
+                          return_onesided=True)
+        vsd += np.sqrt(psd)
+    vsd /= navgs
 
 Thus we are now armed with a known noise source and a method to measure
 said source, both of which can be used to validate signal chains.
@@ -161,12 +164,14 @@ LTspice is a freely available, general-purpose analog circuit simulator that can
 Figure 4 shows a noise simulation of our noise generator. Results <<(verify)>> agree with measurements above. (An op-amp with similar properties to the OP482 was used for the simulation.)
 
 .. image:: ltspice_noise_source.png
+  :width: 700
 
 **Figure 4. LTspice model of Laboratory Noise Source**
 
 The above circuit’s noise is fairly trivial to model, given that it is constant for some bandwidth (in which a signal of interest would lie), above which it rolls off with approximately a first order lowpass response. Where this technique comes in handy is modeling non-flat noise floors, either due to higher order analog filtering, or active elements themselves. The classic example is the “noise mountain” that often exists in autozero amplifiers such as the LTC2057:
 
 .. image:: inputvoltage_noise_spectrum.png
+  :width: 300
 
 **Figure 5. LTC2057 noise spectrum**
 
@@ -177,6 +182,7 @@ Importing LTspice noise data for frequency domain analysis in Python isa matter 
 frequencies in the analysis vector are simulated. In this case, thenoise simulation is set up for a simulation with a maximum frequency of 2.048MHz and resolution of 62.5Hz , corresponding to the first Nyquist zone at a sample rate of 4.096Msps Figure 6 shows the simulation of the LT2057 in a noninverting gain of 10, simulation output, and exported data format.
 
 .. image:: lt2057_g10_noise_simulation.png
+  :width: 700
 
 
 **Figure 6. LTC2057, G=+10 output noise simulation**
@@ -209,50 +215,6 @@ output:
 
 showing close agreement to LTspice.
 
-Analog to Digital Conversion
-----------------------------
-
-If the sensor’s signal will eventually reside on, or at least take a trip through a computer, an analog to digital converter will be involved somewhere along the way. There are numerous background references on analog to digital converters available, and most readers will have a sense that an analog to digital converter samples an input signal at some point in time (or measures the average of a signal over some finite time), and produces a numerical representation of that signal - most often as a binary number with some value between zero and (2^N)-1 where N is the number of bits in the output word. One important concept that is often not covered in detail is that in many applications, the “number of bits” can be safely ignored. Note a general principle of signal chain design:
-
-“The input noise of one stage should be somewhat lower than the output noise of the preceding stage”
-
-The number of ADC bits, and the full-scale input range, determine the ADC’s quantization noise (refer to background references). While quantization noise has different characteristics than thermal noise, it is still just another noise source and is subject to the same principle. Figure 7 shows a conceptual mixed signal chain in which a sensor with an output range of 0 to 0.5V is interfaced to an ADC with an input range of 0 to 5V, and three digital output options:
-
--  Infinity-bits
--  16-bits
--  12-bits
-
-.. image:: mixed_mode_signal_chain.png
-
-**Figure 7. Sensor Signal Chain with Digital Output**
-
-Assume that the amplifiers are well-chosen such that their noise is negligible. The only bandwidth limiting element is the 637kHz, first-order filter, which has an effective noise bandwidth of 1MHz, such that the total noise at the ADC input is about 0.4mV RMS. This is 1/3 of a least-significant bit (LSB, or “code”) for a 12-bit converter, so for a noiseless sensor input, the output code will either be steady, or flip between adjacent codes. In contrast - the 16-bit output will be a distribution of codes, with a standard deviation of about 6 codes.
-
-Aside from quantization noise (which is unavoidable unless your ADC has infinity bits), an ADC itself will have other noise sources that are more akin to those of analog signal chains - thermal noise in amplifier circuits, capacitor thermal noise in sample-and hold circuits, and reference noise. Typically these noise sources tend to be flat or “pink”, with a relatively Gaussian distribution. (This excludes “shaped” noise common in sigma delta converters, but such noise is filtered internally - if the converter is designed properly, you won’t see it.)
-
-As with any signal chain, one noise source within an ADC often dominates. Thus:
-
-If a noiseless signal is applied to the input of an N-bit ADC, resulting in either a single output code, or two adjacent output codes, then quantization noise dominates. The Signal to Noise Ratio can be no greater than (6.02 N + 1.76) dB. If a noiseless signal is applied to the input of an N-bit ADC and the output is a gaussian distribution of “many” output codes, then a thermal noise source dominates. The Signal to Noise Ratio is no greater than :math:`20\log(V_{in}(p-p)/(\sigma/\sqrt{8}))`, where :math:`V_{in}(p-p)` is the full-scale input signal and :math:`\sigma` is the standard deviation of the output codes in units of voltage.
-
-As an example of an ADC that is limited by quantization noise, consider an AD672A, sampled at 10 MSPS and an AD871, sampled at 5MSPS. Both of these are fairly quiet converters, as far as 12-bit converters go. The fact that the vast majority of output codes fall into a single bin indicates that quantization noise is greater than (or on par with) the thermal noise.
-
-.. image:: code_hits.png
-
-**Figure 8. a. AD672A, sampled at 10 MSPS. b. AD871, sampled at 5MSPS.**
-
-In contrast, the figure below shows the grounded-input histogram of a
-16-bit ADC. Nearly 20 codes are represented, and the standard deviation
-is about 2.5 codes.
-
-.. image:: code_from_midscale.png
-
-**Figure 9. LTC2205 zero-input histogram**
-
-Very high resolution converters, such as the AD7124-8 that will be used
-as an example shortly, rarely fall into the first category - thermal
-noise dominates in all of the gain / bandwidth settings, and a shorted
-input will always produce a fairly Gaussian distribution of output
-codes.
 
 Modeling and Measuring ADC noise
 --------------------------------
@@ -367,16 +329,35 @@ datasheet noise specification.
 Expressing ADC Noise as a Density
 ---------------------------------
 
-An ADC’s internal noise will necessarily appear somewhere between DC and Fs/2. Ideally this noise is flat, or at least predictably shaped. In fact, since the ADC’s total noise is spread out across a known bandwidth, it can be converted to a noise density that can be directly compared to other elements in the signal chain.
+An ADC’s internal noise will necessarily appear somewhere between DC and Fs/2. Ideally this noise is flat, or at least predictably shaped. In fact, since the ADC’s total noise is spread out across a known bandwidth, it can be converted to a noise density that can be directly compared to other elements in the signal chain. Precision converters typicaly have total noise given directly, in volts RMS:
 
-.. image:: adc_totalrms_noise.png
+:math:`e_RMS = \sigma`
 
-**Figure 15. ADC Total RMS Noise**
+where:
+
+:math:`e_RMS` is the total RMS noise
+
+:math:`\sigma` is the ADC noise, either given explicitly, or the standard deviation of a grounded-input histogram of codes.
+
+Higher speed converters that are tested and characterized with sinusoidal signal will typically have a signal to noise (SNR) specification. If provided, the total RMS noise can be calculated as:
+
+:math:`e_RMS = \frac{ADCp-p}{\sqrt{8}*10^\frac{SNR}{20}}`
+
+where:
+
+ADCp-p is the peak-to-peak input range of the ADC
+
+The equivalent noise density can then be calculated:
+
+:math:`e_n = \frac{e_RMS}{\sqrt{\frac{fs}{2}}}`
+
+where:
+
+fs is the ADC sample rate in samples/second
 
 This is quite powerful - it allows the ADC’s noise to be directly compared to the noise at the output of the last element in the analog signal chain, which may be an ADC driver stage, a gain stage, or even the sensor itself. Amplifiers will have a noise specification in nV/:math:`\sqrt{\rm Hz}`, and well-specified sensors will have a noise density specified in terms of the parameter being measured. For example, the ADXL1001 accelerometer has a +/-100g input range, and an output noise of 30 µg/:math:`\sqrt{\rm Hz}`. The output can be expressed in nV/:math:`\sqrt{\rm Hz}` by multiplying by the slope of the sensor - 20mV/g (or 20,000,000nV/g), for an output noise of 600nV/:math:`\sqrt{\rm Hz}`.
 
-For the previous measurement - the total noise was 565nV at a data rate
-of 128sps. So the noise density is approximately:
+For the previous measurement - the total noise was 565nV at a data rate of 128sps. So the noise density is approximately:
 
 .. math::
 
@@ -384,14 +365,11 @@ of 128sps. So the noise density is approximately:
 
 Going back to the principle that:
 
-“the output referred noise of stage N should be a bit higher than the
-input noise of stage N+1”
+“the output referred noise of stage N should be a bit higher than the input noise of stage N+1”
 
-And treating the ADC as just another element in the signal chain, we can
-restate this as that:
+And treating the ADC as just another element in the signal chain, we can restate this as that:
 
-“The input noise of **the ADC** should be a bit lower than the output
-noise of the preceding stage”
+“The input noise of **the ADC** should be a bit lower than the output noise of the preceding stage”
 
 This is now an easy comparison, since the ADC input noise is now
 expressed in the same way as your sensor, and amplifier, and the output
@@ -588,7 +566,8 @@ capable of a higher sample rate, the time series data can be upsampled
 and filtered by an interpolating filter.
 
 
-.. image:: image2021-5-24_9-53-46.png
+.. image:: m2k_noise_bands.png
+  :width: 400
 
 
 **Figure 27. Verifying arbitrary noise generator.**
