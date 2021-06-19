@@ -37,13 +37,12 @@ This paper will detail some practical, hands-on examples and tools for instrumen
 A Generic Mixed Signal Chain
 ----------------------------
 
-Figure X shows a generic signal chain typical of a precision instrumentation application. Some physical phenomenon such as temperature, light intensity, pH, force, etc. is converted to an electrical parameter (resistance, current, or directly to voltage). This signal is then amplified,  and low-pass filtered.
+Figure :ref:`mixmode` shows a generic signal chain typical of a precision instrumentation application. Some physical phenomenon such as temperature, light intensity, pH, force, etc. is converted to an electrical parameter (resistance, current, or directly to voltage). This signal is then amplified,  and low-pass filtered.
 
-
-.. figure:: mixed_mode_signal_chain_sm.png
+.. figure:: mixed_mode_signal_chain.png
 
    A Generic Mixed Mode Signal Chain
-
+   :label:`mixmode`
 
 If the sensor’s signal will eventually reside on, or at least take a trip through a computer, an ADC will be involved somewhere along the way. There are numerous background references on analog to digital converters available, and most readers will have a sense that an analog to digital converter samples an input signal at some point in time (or measures the average of a signal over some observation time), and produces a numerical representation of that signal - most often as a binary number with some value between zero and (2**N)-1 where N is the number of bits in the output word.
 
