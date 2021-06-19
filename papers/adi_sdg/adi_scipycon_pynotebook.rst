@@ -39,10 +39,11 @@ A Generic Mixed Signal Chain
 
 Figure X shows a generic signal chain typical of a precision instrumentation application. Some physical phenomenon such as temperature, light intensity, pH, force, etc. is converted to an electrical parameter (resistance, current, or directly to voltage). This signal is then amplified,  and low-pass filtered.
 
-.. image:: mixed_mode_signal_chain.png
-  :width: 700
 
-**Figure X. A Generic Mixed Mode Signal Chain**
+.. figure:: mixed_mode_signal_chain_sm.png
+
+   A Generic Mixed Mode Signal Chain
+
 
 If the sensor’s signal will eventually reside on, or at least take a trip through a computer, an ADC will be involved somewhere along the way. There are numerous background references on analog to digital converters available, and most readers will have a sense that an analog to digital converter samples an input signal at some point in time (or measures the average of a signal over some observation time), and produces a numerical representation of that signal - most often as a binary number with some value between zero and (2**N)-1 where N is the number of bits in the output word.
 
@@ -73,17 +74,15 @@ As with any signal chain, one noise source within an ADC often dominates. Thus:
 
 As an example of an ADC that is limited by quantization noise, consider an AD672A, sampled at 10 MSPS and an AD871, sampled at 5MSPS. Both of these are fairly quiet converters, as far as 12-bit converters go. The fact that the vast majority of output codes fall into a single bin indicates that quantization noise is greater than (or on par with) the thermal noise.
 
-.. image:: code_hits.png
-  :width: 400
+.. figure:: code_hits.png
 
-**Figure 8. a. AD672A, sampled at 10 MSPS. b. AD871, sampled at 5MSPS.**
+   AD672A, sampled at 10 MSPS. and AD871, sampled at 5MSPS.
 
 In contrast, the figure below shows the grounded-input histogram of a 16-bit ADC. Nearly 20 codes are represented, and the standard deviation is about 2.5 codes.
 
-.. image:: code_from_midscale.png
-  :width: 200
+.. figure:: code_from_midscale.png
 
-**Figure 9. LTC2205 zero-input histogram**
+   **Figure 9. LTC2205 zero-input histogram**
 
 Very high resolution converters, such as the AD7124-8 that will be used as an example shortly, rarely fall into the first category - thermal noise dominates in all of the gain / bandwidth settings, and a shorted input will always produce a fairly Gaussian distribution of output codes.
 
@@ -108,10 +107,9 @@ Normalizing the bandwidth to 1Hz expresses the noise density, in :math:`\frac{V}
 
 A sensor’s datasheet may specify a low output impedance (often close to zero ohms), but this likely a buffer stage - which eases interfacing to downstream circuits, but does not eliminate noise due to impedances earlier in the signal chain.
 
-.. image:: generic_buffered_sensor.png
-  :width: 300
+.. figure:: generic_buffered_sensor.png
 
-**Figure 1. Conceptual Sensor with Buffered Output. Noise is buffered along with the signal.**
+   **Figure 1. Conceptual Sensor with Buffered Output. Noise is buffered along with the signal.**
 
 There are numerous other sensor limitations - mechanical, chemical, optical, etc. each with their own theoretical limits and whose effects can be modeled and compensated for later. But noise is the one imperfection that that cannot 
 
@@ -120,19 +118,16 @@ A Laboratory Noise Source
 
 A noise generator is useful for both understanding the principles of and actual testing of signal chains. The circuit shown in Figure X uses a 1M resistor as a 127nV/:math:`\sqrt{Hz}` (at room temperature) noise source with “okay accuracy” and bandwidth. While the accuracy is only “okay”, the advantage is that it is based on first principles, so in a sense can act as an uncalibrated standard. The OP482 is an ultralow bias current amplifier with correspondingly low current noise, and a voltage noise low enough that the noise due to a 1M input impedance is dominant. Configured with a gain of 100, the output noise is 12.7 µV/:math:`\sqrt{\rm Hz}`. So in a sense - this circuit is the “world’s worst sensor”, with lots of sensor noise, but that does not actually sense anything. (It could be used as a crude temperature sensor - but in this application, any great departure from room temperature (~300 Kelvin) should be corrected for.)
 
-.. image:: noise_source_schematic.png
-  :width: 500
+.. figure:: noise_source_schematic.png
 
-**Figure 2. Laboratory Noise Source**
+   **Figure 2. Laboratory Noise Source**
 
 The noise source was verified with an ADALM2000 USB instrument, using
 the Scopy GUI’s spectrum analyzer, shown in Figure 3.
 
-.. image:: resistor_based_noise_source_nsd_scopy.png
-  :width: 500
+.. figure:: resistor_based_noise_source_nsd_scopy.png
 
-**Figure 3. Noise Generator Output
-<<Placeholder - this is LTC6655 noise test jig>>**
+   Figure 3. Noise Generator Output
 
 Under the analyzer settings shown, the ADALM2000 noise floor is
 <<40µV/:math:`\sqrt{\rm Hz}`, well below the 1.27 mV/:math:`\sqrt{\rm Hz}`>> of the noise source. The idea that your test instrument must be better than the circuit parameter being measured is intuitively obvious in this situation; what is less obvious, or at least not thought about as much, is that this principle should be followed all the way through the sensor signal chain.
@@ -163,17 +158,15 @@ LTspice is a freely available, general-purpose analog circuit simulator that can
 
 Figure 4 shows a noise simulation of our noise generator. Results <<(verify)>> agree with measurements above. (An op-amp with similar properties to the OP482 was used for the simulation.)
 
-.. image:: ltspice_noise_source.png
-  :width: 700
+.. figure:: ltspice_noise_source.png
 
-**Figure 4. LTspice model of Laboratory Noise Source**
+   **Figure 4. LTspice model of Laboratory Noise Source**
 
 The above circuit’s noise is fairly trivial to model, given that it is constant for some bandwidth (in which a signal of interest would lie), above which it rolls off with approximately a first order lowpass response. Where this technique comes in handy is modeling non-flat noise floors, either due to higher order analog filtering, or active elements themselves. The classic example is the “noise mountain” that often exists in autozero amplifiers such as the LTC2057:
 
-.. image:: inputvoltage_noise_spectrum.png
-  :width: 300
+.. figure:: inputvoltage_noise_spectrum.png
 
-**Figure 5. LTC2057 noise spectrum**
+   **Figure 5. LTC2057 noise spectrum**
 
 While that mountain looks daunting, it may not be a problem if it is
 suppressed in either the analog or digital domains.
@@ -181,11 +174,9 @@ suppressed in either the analog or digital domains.
 Importing LTspice noise data for frequency domain analysis in Python isa matter of setting up the simulation command such that exact
 frequencies in the analysis vector are simulated. In this case, thenoise simulation is set up for a simulation with a maximum frequency of 2.048MHz and resolution of 62.5Hz , corresponding to the first Nyquist zone at a sample rate of 4.096Msps Figure 6 shows the simulation of the LT2057 in a noninverting gain of 10, simulation output, and exported data format.
 
-.. image:: lt2057_g10_noise_simulation.png
-  :width: 700
+.. figure:: lt2057_g10_noise_simulation.png
 
-
-**Figure 6. LTC2057, G=+10 output noise simulation**
+   **Figure 6. LTC2057, G=+10 output noise simulation**
 
 In order to determine the impact of a given band of noise on a signal (signal to noise ratio) the noise is root-sum-square integrated across the bandwidth of interest. In LTspice, plotted parameters can be integrated by setting the plot limits, then control-clicking the parameter label. The total noise over the entire 2.048MHz simulation is 32µVRMS. A function to implement this operation in Python is listed below.
 
@@ -223,9 +214,9 @@ Modeling the noise of a thermal-noise limited ADC’s is fairly
 straightforward. The figure below shows two histograms for the 24-bit
 AD7124-8, for two different internal amplifier settings.
 
-.. image:: ad7124_histograms.png
+.. figure:: ad7124_histograms.png
 
-**Figure 10. AD7124 output noise**
+   **Figure 10. AD7124 output noise**
 
 If the noise is “well behaved” (Gaussian) and constant across the ADC’s
 input span, the ADC’s time-domain noise can be modeled using Numpy’s
@@ -248,15 +239,15 @@ random.normal function:
 
 Figure 11 shows a general setup for testing ADC noise and filter response. (Exact connections are detailed in the references.) The ADALM2000 from the previous spectrum analysis is repurposed as an arbitrary signal generator. A Raspberry Pi 4 running a kernel with AD7124 device driver support acts as a simple bridge between the AD7124 and a host computer. There are many ways to connect a host computer to an ADC, but the advantage to this approach is that it uses the industry-standard Industrial Input-Output (IIO) framework, which has a well-established software API (including Python bindings). Application code can run locally (on the Pi) or on a remote machine via network, serial, or USB connection. Furthermore, the pyadi-iio abstraction layer takes care of much of the boilerplate setup required for interfacing with IIO devices, further simplifying the software interface.
 
-.. image:: full_setup_overview.png
+.. figure:: full_setup_overview.png
 
-**Figure 11. ADC noise and filter measurement setup**
+   **Figure 11. ADC noise and filter measurement setup**
 
 With communication to the AD7124-8 established, an extremely simple, yet extremely useful test can be performed: measuring input noise directly. Simply shorting the input to an ADC and looking at the resulting distribution of ADC codes is a valuable (arguably essential) step in validating a signal chain design. One subtlety about the configuration as set by the rpi-ad7124-8-all-diff-cs0-int25 overlay is that the input range is unipolar, so only positive values are valid. (It is still differential, meaning, the measurement is taken BETWEEN adjacent inputs.) This means that a converter with perfect offset will produce a “half historgram” output, with half of the values equal to zero (because that’s the lowest valid output value), and half of the values slightly above zero. The solution is to apply a very small input voltage that overcomes the offset, but does not add significant noise. Build the circuit shown in Figure 12, which will impose a 1.25mV signal across the input (far larger than the 15µV uncalibrated offset of the AD7124-8.)
 
-.. image:: ad7124_noise_circuit.png
+.. figure:: ad7124_noise_circuit.png
 
-**Figure 12. Offset Circuit**
+   **Figure 12. Offset Circuit**
 
 .. code-block:: python
 
@@ -311,17 +302,17 @@ After running the `ad7124_simple_capture
 script <https://github.com/mthoren-adi/precision_adc_toolbox/blob/master/ad7124_simple_capture.py>`__,
 you should see an output plot similar to Figure 13.
 
-.. image:: ad7124_warmup.png
+.. figure:: ad7124_warmup.png
 
-**Figure 13. Initial Warmup**
+   **Figure 13. Initial Warmup**
 
 If you run the
 `script <https://github.com/mthoren-adi/precision_adc_toolbox/blob/master/ad7124_simple_capture.py>`__
 a couple of times right after turning on the power, you may see some drift or “wandering”. This can be due to a number of factors - the internal reference warming up, the external resistors warming up (and hence drifting), or even parasitc thermmocouples, where slightly dissimilar metals will produce a voltage in the presence of thermal gradients. The lower traces in Figure 13 are after wrapping the AD7124 and resistor divider in antistatic bubble wrap, and waiting half an hour. Finally, Figure 14 shows a single trace after warmup.
 
-.. image:: ad7124_time_noise.png
+.. figure:: ad7124_time_noise.png
 
-**Figure 14. Noise after warmup.**
+   **Figure 14. Noise after warmup.**
 
 Typical noise under these conditions is about 565nVRMS - on par with the
 datasheet noise specification.
@@ -391,20 +382,20 @@ Note that what follows is only a model of the AD7124-8 filters, it is not a bit-
 Figures 16 and 17 show the AD7124-8’s 10Hz and 50Hz notch filters. Various combinations of Higher order SINC3 and SINC4 filters are also
 available.
 
-.. image:: ad7124_filter_10.png
+.. figure:: ad7124_filter_10.png
 
-**Figure 16. AD7124-8 10Hz notch filter**
+   **Figure 16. AD7124-8 10Hz notch filter**
 
-.. image:: ad7124_filter_50.png
+.. figure:: ad7124_filter_50.png
 
-**Figure 17. AD7124 50Hz notch filter**
+   **Figure 17. AD7124 50Hz notch filter**
 
 
 Next, let’s see if we can reverse-engineer one of the AD7124’s internal filters. And to keep it interesting we’ll choose one with a strange frequency response, like the simultaneous 50Hz/60Hz rejection filter shown in Figure 22.
 
-.. image:: simult_50_60_reverse_eng.png
+.. figure:: simult_50_60_reverse_eng.png
 
-**Figure 22. AD7124-8 50/60Hz rejection filter**
+   **Figure 22. AD7124-8 50/60Hz rejection filter**
 
 Higher order SINC filters can be generated by convolving SINC1 filters.
 For example, convolving two SINC1 filters (with a rectangular impulse
@@ -441,16 +432,16 @@ Run the
 and observe the impulse (time domain) shapes of the filters, shown in
 Figure 23.
 
-.. image:: rev_eng_filters_all.png
+.. figure:: rev_eng_filters_all.png
 
-**Figure 23. Generated Filter Impulse Responses**
+   **Figure 23. Generated Filter Impulse Responses**
 
 And finally, the frequency response can be calcualted using NumPy’s
 freqz function, shown in Figure 24.
 
-.. image:: freqz_annotated.png
+.. figure:: freqz_annotated.png
 
-**Figure 24. Calculated Frequency Response Using Freqz**
+   **Figure 24. Calculated Frequency Response Using Freqz**
 
 Verifying ADC filter response
 -----------------------------
@@ -458,9 +449,9 @@ Verifying ADC filter response
 The AD7124-8 is a sigma-delta ADC, in which a modulator produces a high sample rate, but noisy (low resolution), representation of the analog input. This noisy data is then filtered by an internal digital filter, producing a lower rate, lower noise output. The type of filter varies widely depending on the intended end application - an audio sigma-delta ADC will have a filter that is flat out to 20kHz, with an output data rate of at least 44ksps. The AD7124-8 is general-purpose, targeted at precision applications. As such, the digital filter response and output data rate are highly configurable. While the filter response is well-defined in the datasheet, there are occasions when one may want to measure the impact of the filter on a given signal. This experiment measures the filter response by applying sinewaves to the ADC input and analyzing the output. This method can be easily adapted to measuring other waveforms - wavelets, simulated physical events, etc. Connect the ADALM2000 to the EVAL-AD7124-8-PMDZ as shown in Figure 25. The 1k resistor is to protect the AD7124-8 in case something goes wrong, as the m2k output range is -5V to +5V, beyond the -0.3V to 3.6V absolute maximum limits of the AD7124-8. DO NOT OMIT THIS RESISTOR.
 
 
-.. image:: ad7124_m2k_circuit.png
+.. figure:: ad7124_m2k_circuit.png
 
-**Figure 25. AD7124 - m2k Connections for Filter Response Measurement**
+   **Figure 25. AD7124 - m2k Connections for Filter Response Measurement**
 
 Run the `trace_ad7124_filter_with_m2k
 script <https://github.com/mthoren-adi/precision_adc_toolbox/blob/master/trace_ad7124_filter_with_m2k.py>`__.
@@ -500,9 +491,9 @@ The
 `script <https://github.com/mthoren-adi/precision_adc_toolbox/blob/master/trace_ad7124_filter_with_m2k.py>`__
 will set the m2k’s waveform generator to generate a sinewave at 10Hz, capture 1024 data points, calculate the RMS value, then append the result to a list. It will then step through frequencies up to 250Hz, then plot the result as shown in Figure 26.
 
-.. image:: ad7124_filter_resp_measured.png
+.. figure:: ad7124_filter_resp_measured.png
 
-**Figure 26. AD7124 Measured Filter Response, 128sps**
+   **Figure 26. AD7124 Measured Filter Response, 128sps**
 
 So while it’s difficult to measure high attenuation values without quite a bit more care, the response of the first couple of major “lobes” is apparent. At this point, you’re all set up to send your own waveforms to the AD7124 and see how it responds, just replace the sinewave data that is pushed to the m2k with your own data.
 
@@ -566,11 +557,9 @@ capable of a higher sample rate, the time series data can be upsampled
 and filtered by an interpolating filter.
 
 
-.. image:: m2k_noise_bands.png
-  :width: 400
+.. figure:: m2k_noise_bands.png
 
-
-**Figure 27. Verifying arbitrary noise generator.**
+   **Figure 27. Verifying arbitrary noise generator.**
 
 This noise generator can be used in conjunction with the pure analog
 generator for verifying the rejection properties of a signal chain.
@@ -693,10 +682,9 @@ The result is that the ENBW of the SINC4, 128sps filter is about 31Hz. Setting t
 Measured results are approximately 4.5mVRMS total noise. The oscilloscope capture of the ADC input signal is plotted next to the ADC output data below. Note the measured peak-to-peak noise of 426mV, while the ADC peak-to-peak noise is about 26mV. While such a high noise level is (hopefully) unrealistic in an actual precision signal chain, this exercise demonstrates that the the ADC’s internal filter can be counted on to act as the primary bandwidth limiting, and hence noise reducing, element in a signal chain.
 
 
-.. image:: ad7124_noise_blast.png
+.. figure:: ad7124_noise_blast.png
 
-
-**Figure 28. Blasting the AD7124 with 1mV/:math:`\sqrt{\rm Hz}`**
+   **Figure 28. Blasting the AD7124 with 1mV/:math:`\sqrt{\rm Hz}`**
 
 
 Conclusion
