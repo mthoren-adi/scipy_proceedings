@@ -36,7 +36,7 @@ Figure :ref:`mixmode` shows a generic signal chain typical of a precision instru
    In a mixed-mode signal chain, some physical phenomenon such as temperature, light intensity, pH, force, or torque is converted to an electrical parameter (resistance, current, or directly to voltage). This signal is then amplified, low-pass filtered, and digitized by an ADC, which may include internal digital filtering.
    :label:`mixmode`
 
-There are numerous background references on analog to digital converters available [5]_ , and most readers will have a sense that an analog to digital converter samples an input signal at some point in time (or measures the average of a signal over some observation time), and produces a numerical representation of that signal - most often as a binary number with some value between zero and :math:`2^N - 1` where math:`N` is the number of bits in the output word.
+There are numerous background references on analog to digital converters available [5]_ , and most readers will have a sense that an analog to digital converter samples an input signal at some point in time (or measures the average of a signal over some observation time), and produces a numerical representation of that signal - most often as a binary number with some value between zero and :math:`2^N - 1` where :math:`N` is the number of bits in the output word.
 
 ADC Noise Sources
 ---------------------------------------------------------
@@ -48,7 +48,7 @@ While there are several noise sources in Figure :ref:`mixmode`, one that is ofte
 As with any signal chain, one noise source within an ADC often dominates. Thus, if a noiseless signal is applied to an N-bit ADC:
 
 -  results in either a single output code, or two adjacent output codes, then **quantization noise dominates**. The Signal to Noise Ratio can be no greater than (6.02 N + 1.76) dB. [7]_ 
--  results in a gaussian distribution of "many" output codes, then a **thermal noise source dominates**. The Signal to Noise Ratio is no greater than: 
+-  results in a gaussian distribution of "many" output codes, then **thermal noise source dominates**. The Signal to Noise Ratio is no greater than: 
 
    :math:`20\log(V_{in}(p-p)/(\sigma/\sqrt{8}))`, where:
 
